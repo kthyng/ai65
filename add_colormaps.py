@@ -1,3 +1,6 @@
+import matplotlib.colors as colors
+import numpy
+
 def add_colormaps(colormaps, data_limits=[0.0,1.0], data_break=0.5,
                              colormap_name="JohnDoe"):
     r"""Concatenate colormaps in *colormaps* list and return Normalize object.
