@@ -1,14 +1,14 @@
 '''
 Plotting.
 Example:
-python2 plots.py 'vort' 'full' 'bar' 'intime'
-python2 plots.py 'mix' 'full' 'bar' 'intime'
-python2 plots.py 'rho' 'full' 'surface' 'intime'
-python2 plots.py 'upwelling' 'full' 'bar' 'intime'
-python2 plots.py 'upsloping' 'full' 'bar' 'intime'
-python2 plots.py 'mix' 'full' 'bar' 'mean'
-python2 plots.py 'upwelling' 'full' 'bar' 'mean'
-python2 plots.py 'upsloping' 'full' 'bar' 'mean'
+python3 plots.py 'vort' 'full' 'bar' 'intime'
+python3 plots.py 'mix' 'full' 'bar' 'intime'
+python3 plots.py 'rho' 'full' 'surface' 'intime'
+python3 plots.py 'upwelling' 'full' 'bar' 'intime'
+python3 plots.py 'upsloping' 'full' 'bar' 'intime'
+python3 plots.py 'mix' 'full' 'bar' 'mean'
+python3 plots.py 'upwelling' 'full' 'bar' 'mean'
+python3 plots.py 'upsloping' 'full' 'bar' 'mean'
 '''
 
 import xarray as xr
@@ -29,8 +29,6 @@ mpl.rcParams.update({'font.size': 10})
 import scipy.io
 import os
 import matplotlib.dates as Dates
-import octant
-import octant.depths
 
 
 merc = ccrs.Mercator()
@@ -129,13 +127,13 @@ def setupvar(varname, kind):
     elif varname == 'mix':
         cmap = cmo.amp
         if kind == 'intime':
-            vmax = 0.5
+            vmax = 0.05
         elif kind == 'mean':
-            vmax = 0.1
+            vmax = 0.005
         vmin = 0
         lon = lon_psi
         lat = lat_psi
-        label = 'Vertical\nmixing\n[?]'
+        label = 'Vertical\nmixing\n[kg$\cdot$m$^{-2}\cdot$s$^{-1}$]'
         ticks = np.linspace(vmin, vmax, 6)
         ctidal = '#71001D'
         alpha = 0.6
@@ -194,12 +192,9 @@ def setupvarforstep(m, varname, depth='bar'):
         if depth == 'bar':
             AKs = m['AKs'][0, 1:-1, 1:-1, 1:-1].squeeze()  # vertical viscosity for scalar
             rho = m['rho'][0, :, 1:-1, 1:-1].squeeze()  # salt
-            zr = octant.depths.get_zrho(m['Vtransform'][0], m['Vstretching'][0],
-                                       m['u'].shape[1], m['theta_s'][0]+0.0000001,
-                                       m['theta_b'][0], m['h'][:], m['hc'][:], zeta=m['zeta'][0],
-                                       Hscale=3)
-            dz = np.diff(zr[:,1:-1,1:-1], axis=0)
-            dsdz = (rho[:-1] - rho[1:])*dz
+            zeta = m['zeta'][0, 1:-1, 1:-1].squeeze()
+            dz = (h[1:-1,1:-1] + zeta)/20.  # easy since layers are uniform
+            dsdz = (rho[:-1] - rho[1:])/dz
             var = (AKs*dsdz).sum(axis=0)
 
     elif varname == 'rho':
@@ -342,7 +337,7 @@ if __name__ == "__main__":
             if os.path.exists(meanname):
                 i = ntimes-1  # short-circuit loop and jump to end
                 meanfile = np.load(meanname)
-                vart = meanfile['var'].item()
+                vart = meanfile['var']
             else:
                 Var += vart
                 # on the last time step, complete average and rename
