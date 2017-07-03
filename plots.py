@@ -3,6 +3,8 @@ Plotting.
 Example:
 python3 plots.py 'vort' 'full' 'bar' 'intime'
 python3 plots.py 'mix' 'full' 'bar' 'intime'
+python3 plots.py 'mom' 'full' 'bar' 'intime'
+python3 plots.py 'friction' 'full' 'bar' 'intime'
 python3 plots.py 'rho' 'full' 'surface' 'intime'
 python3 plots.py 'upwelling' 'full' 'bar' 'intime'
 python3 plots.py 'upsloping' 'full' 'bar' 'intime'
@@ -30,13 +32,18 @@ import scipy.io
 import os
 import matplotlib.dates as Dates
 
+g = 9.81  # m/s^2
+Cd = 3e-3  # friction coefficient
+rho0 = 1023.7
 
 merc = ccrs.Mercator()
 pc = ccrs.PlateCarree()
 locgrid = '/pong/raid/kthyng/froude/ai65/grid.nc'
 locmodel = '/pong/raid/kthyng/froude/ai65/OUT/'
 grid = netCDF.Dataset(locgrid)
-pm = grid['pm'][:]; pn = grid['pn'][:]
+pm = grid['pm'][0,0]; pn = grid['pn'][0,0]
+dx = pm**-1; dy = pn**-1
+
 lon_psi = grid['lon_psi'][:]; lat_psi = grid['lat_psi'][:]
 lon_rho = grid['lon_rho'][:]; lat_rho = grid['lat_rho'][:]
 dates = pd.date_range("2006-09-01", "2006-10-01", freq="15T")
@@ -127,13 +134,42 @@ def setupvar(varname, kind):
     elif varname == 'mix':
         cmap = cmo.amp
         if kind == 'intime':
-            vmax = 0.05
+            vmax = 2.0
         elif kind == 'mean':
-            vmax = 0.005
+            vmax = 0.5
         vmin = 0
         lon = lon_psi
         lat = lat_psi
-        label = 'Vertical\nmixing\n[kg$\cdot$m$^{-2}\cdot$s$^{-1}$]'
+        label = 'Dissipation:\nbuoyancy\nproduction\n[W/m$^2$]'
+        # label = 'Vertical\nmixing\n[kg$\cdot$m$^{-2}\cdot$s$^{-1}$]'
+        ticks = np.linspace(vmin, vmax, 6)
+        ctidal = '#71001D'
+        alpha = 0.6
+    elif varname == 'mom':
+        cmap = cmo.amp
+        if kind == 'intime':
+            vmax = 5
+        elif kind == 'mean':
+            vmax = 0.05
+        vmin = 0
+        lon = lon_psi
+        lat = lat_psi
+        label = 'Dissipation:\nshear\nproduction\n[W/m$^2$]'
+        # label = 'Vertical\nmixing\n[kg$\cdot$m$^{-2}\cdot$s$^{-1}$]'
+        ticks = np.linspace(vmin, vmax, 6)
+        ctidal = '#71001D'
+        alpha = 0.6
+    elif varname == 'friction':
+        cmap = cmo.amp
+        if kind == 'intime':
+            vmax = 8.0
+        elif kind == 'mean':
+            vmax = 0.05
+        vmin = 0
+        lon = lon_psi
+        lat = lat_psi
+        label = 'Dissipation:\nbottom\nfriction\n[W/m$^2$]'
+        # label = 'Vertical\nmixing\n[kg$\cdot$m$^{-2}\cdot$s$^{-1}$]'
         ticks = np.linspace(vmin, vmax, 6)
         ctidal = '#71001D'
         alpha = 0.6
@@ -195,7 +231,24 @@ def setupvarforstep(m, varname, depth='bar'):
             zeta = m['zeta'][0, 1:-1, 1:-1].squeeze()
             dz = (h[1:-1,1:-1] + zeta)/20.  # easy since layers are uniform
             dsdz = (rho[:-1] - rho[1:])/dz
-            var = (AKs*dsdz).sum(axis=0)
+            var = g * (AKs * dsdz * dz).sum(axis=0)  # sum in z
+
+    elif varname == 'mom':
+        if depth == 'bar':
+            AKv = m['AKv'][0, 1:-1, 1:-1, 1:-1].squeeze()  # vertical viscosity for momentum
+            u = re(m['u'][0, :, 1:-1, :],2).squeeze()
+            v = re(m['v'][0, :, :, 1:-1],1).squeeze()
+            zeta = m['zeta'][0, 1:-1, 1:-1].squeeze()
+            dz = (h[1:-1,1:-1] + zeta)/20.  # easy since layers are uniform
+            dudz = (u[:-1] - u[1:])/dz
+            dvdz = (v[:-1] - v[1:])/dz
+            var = rho0 * (AKv * (dudz**2 + dvdz**2) * dz).sum(axis=0)  # sum in z
+
+    elif varname == 'friction':
+        if depth == 'bar':  # not really depth averaged
+            u = re(m['u'][0, 0, 1:-1, :],1).squeeze()
+            v = re(m['v'][0, 0, :, 1:-1],0).squeeze()
+            var = Cd * rho0 * abs((u**2 + v**2)**(3/2))
 
     elif varname == 'rho':
         # if depth == 'bar':
@@ -312,7 +365,7 @@ if __name__ == "__main__":
         if not os.path.exists(tempname):
             os.makedirs(tempname)
 
-    if varname == 'mix' or varname == 'upwelling' or varname == 'upsloping':
+    if varname == 'upwelling' or varname == 'upsloping':
         dobathy = True
     else:
         dobathy = False
