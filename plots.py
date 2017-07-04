@@ -150,7 +150,7 @@ def setupvar(varname, kind):
         if kind == 'intime':
             vmax = 5
         elif kind == 'mean':
-            vmax = 0.05
+            vmax = 1.25
         vmin = 0
         lon = lon_psi
         lat = lat_psi
@@ -164,7 +164,7 @@ def setupvar(varname, kind):
         if kind == 'intime':
             vmax = 8.0
         elif kind == 'mean':
-            vmax = 0.05
+            vmax = 2.0
         vmin = 0
         lon = lon_psi
         lat = lat_psi
