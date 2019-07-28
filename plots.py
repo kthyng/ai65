@@ -40,7 +40,10 @@ merc = ccrs.Mercator()
 pc = ccrs.PlateCarree()
 locgrid = '/pong/raid/kthyng/froude/ai65/grid.nc'
 locmodel = '/pong/raid/kthyng/froude/ai65/OUT/'
-grid = netCDF.Dataset(locgrid)
+try:
+    grid = netCDF.Dataset(locgrid)
+except:
+    grid = netCDF.Dataset('grid.nc')
 pm = grid['pm'][0,0]; pn = grid['pn'][0,0]
 dx = pm**-1; dy = pn**-1
 
